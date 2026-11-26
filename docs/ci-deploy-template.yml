@@ -1,0 +1,57 @@
+name: LBDC CI & Vercel Deploy Triggers
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build and test @lbdc/shared
+        run: |
+          npm install --prefix packages/shared --no-audit --no-fund
+          npm run build --prefix packages/shared
+          npm run test --prefix packages/shared
+
+      - name: Build and test @lbdc/api
+        run: |
+          npm install --prefix apps/api --install-links --no-audit --no-fund
+          npx --prefix apps/api prisma generate --schema=apps/api/prisma/schema.prisma
+          npm run build --prefix apps/api
+          npm run test --prefix apps/api
+
+  trigger-vercel-web:
+    needs: test-and-verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Vercel Customer Web Deploy Hook
+        env:
+          VERCEL_WEB_DEPLOY_HOOK: ${{ secrets.VERCEL_WEB_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$VERCEL_WEB_DEPLOY_HOOK" ]; then
+            curl -fsS -X POST "$VERCEL_WEB_DEPLOY_HOOK"
+          else
+            echo "VERCEL_WEB_DEPLOY_HOOK not set; relying on Vercel native Git integration."
+          fi
+
+  trigger-vercel-admin:
+    needs: test-and-verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Vercel Admin Portal Deploy Hook
+        env:
+          VERCEL_ADMIN_DEPLOY_HOOK: ${{ secrets.VERCEL_ADMIN_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$VERCEL_ADMIN_DEPLOY_HOOK" ]; then
+            curl -fsS -X POST "$VERCEL_ADMIN_DEPLOY_HOOK"
+          else
+            echo "VERCEL_ADMIN_DEPLOY_HOOK not set; relying on Vercel native Git integration."
+          fi
