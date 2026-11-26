@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { apiFetch, setAuthTokens } from '@/lib/api';
+import { SocialAuthButtons } from '@/components/SocialAuthButtons';
 
 export default function LoginPage() {
   const [mode, setMode] = useState<'password' | 'otp' | 'reset'>('password');
@@ -91,7 +92,11 @@ export default function LoginPage() {
           <p className="mt-1 text-xs text-muted">Sign in to manage your celebration websites</p>
         </div>
 
-        <div className="mt-6 flex rounded-full border border-sand bg-ivory p-1 text-xs font-semibold">
+        <div className="mt-6">
+          <SocialAuthButtons mode="login" dividerText="or continue with" onError={(msg) => setError(msg)} />
+        </div>
+
+        <div className="flex rounded-full border border-sand bg-ivory p-1 text-xs font-semibold">
           <button
             type="button"
             onClick={() => setMode('password')}

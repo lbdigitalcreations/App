@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { apiFetch, setAuthTokens } from '@/lib/api';
+import { SocialAuthButtons } from '@/components/SocialAuthButtons';
 
 function RegisterForm() {
   const searchParams = useSearchParams();
@@ -50,7 +51,11 @@ function RegisterForm() {
 
         {error && <div className="mt-4 rounded-xl bg-red-50 p-3 text-xs text-red-700">{error}</div>}
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+        <div className="mt-6">
+          <SocialAuthButtons mode="register" dividerText="or continue with email" onError={(msg) => setError(msg)} />
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="text-xs font-semibold text-muted">Full Name *</label>
             <input

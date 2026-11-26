@@ -10,5 +10,6 @@ build/
 *.log
 uploads/
 coverage/
+*.tsbuildinfo
 .DS_Store
 Thumbs.db
