@@ -9,9 +9,27 @@ const targetSharedInNodeModules = path.join(appDir, 'node_modules', '@lbdc', 'sh
 
 console.log('[LBDC] Preparing @lbdc/shared before build...');
 if (!fs.existsSync(path.join(sharedDir, 'node_modules', 'zod'))) {
-  execSync('npm install --no-audit --no-fund', { cwd: sharedDir, stdio: 'inherit' });
+  try {
+    execSync('npm install --include=dev --no-audit --no-fund', {
+      cwd: sharedDir,
+      stdio: 'inherit',
+      env: { ...process.env, NODE_ENV: 'development' },
+    });
+  } catch (err) {
+    console.warn('[LBDC] Warning during shared npm install:', err.message);
+  }
 }
-execSync('npm run build', { cwd: sharedDir, stdio: 'inherit' });
+
+// Build shared package using npx --yes -p typescript tsc
+try {
+  execSync('npx --yes -p typescript tsc -p tsconfig.json', {
+    cwd: sharedDir,
+    stdio: 'inherit',
+  });
+} catch (err) {
+  console.warn('[LBDC] Retrying shared build with local npm run build...');
+  execSync('npm run build', { cwd: sharedDir, stdio: 'inherit' });
+}
 
 const srcDist = path.join(sharedDir, 'dist');
 if (fs.existsSync(targetSharedInNodeModules)) {

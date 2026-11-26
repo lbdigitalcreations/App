@@ -5,7 +5,7 @@
   "description": "LBDC NestJS API",
   "scripts": {
     "dev": "tsx watch src/main.ts",
-    "build": "npx prisma@5.22.0 generate && node ../../scripts/prepare-shared.js && tsc -p tsconfig.json",
+    "build": "npx prisma@5.22.0 generate && node ../../scripts/prepare-shared.js && npx --yes -p typescript@5.7.2 tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint \"src/**/*.ts\"",
     "start": "node dist/main.js",

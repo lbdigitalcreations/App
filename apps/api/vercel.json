@@ -1,7 +1,0 @@
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nestjs",
-  "installCommand": "npm install",
-  "buildCommand": "npm run build",
-  "ignoreCommand": "git rev-parse --verify HEAD^ >/dev/null 2>&1 && git diff --quiet HEAD^ HEAD -- . ../../packages/shared ../../scripts/prepare-shared.js"
-}
