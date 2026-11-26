@@ -20,9 +20,9 @@ if (!fs.existsSync(path.join(sharedDir, 'node_modules', 'zod'))) {
   }
 }
 
-// Build shared package using npx --yes -p typescript tsc
+// Build shared package using npx --yes -p typescript@5.7.2 tsc
 try {
-  execSync('npx --yes -p typescript tsc -p tsconfig.json', {
+  execSync('npx --yes -p typescript@5.7.2 tsc -p tsconfig.json', {
     cwd: sharedDir,
     stdio: 'inherit',
   });
