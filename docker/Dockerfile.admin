@@ -1,14 +1,13 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package.json tsconfig.base.json ./
+COPY scripts ./scripts
 COPY packages/shared ./packages/shared
 COPY apps/admin ./apps/admin
-RUN npm install --install-links
-RUN npm run build --workspace=@lbdc/shared
-RUN npm run build --workspace=@lbdc/admin
+RUN npm install --prefix apps/admin --no-audit --no-fund && npm run build --prefix apps/admin
 
 FROM node:20-alpine
 WORKDIR /app
 COPY --from=builder /app ./
 EXPOSE 3001
-CMD ["npm", "run", "start", "--workspace=@lbdc/admin"]
+CMD ["npm", "run", "start", "--prefix", "apps/admin"]
