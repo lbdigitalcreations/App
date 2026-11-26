@@ -5,7 +5,8 @@
     "rootDir": "./src",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "strictPropertyInitialization": false
+    "strictPropertyInitialization": false,
+    "noImplicitAny": false
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "test", "prisma", "src/**/*.spec.ts"]
