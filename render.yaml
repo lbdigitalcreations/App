@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: lbdc-api
+    runtime: docker
+    region: singapore
+    plan: free
+    repo: https://github.com/lbdigitalcreations/App
+    branch: main
+    dockerfilePath: ./docker/Dockerfile.api
+    dockerContext: .
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_ENV
+        value: production
+      - key: PORT
+        value: "4000"
+      - key: API_PREFIX
+        value: api/v1
+      - key: CORS_ORIGINS
+        value: https://lbdc-web.vercel.app,https://lbdc-admin.vercel.app,https://www.lbdigitalcreations.in,https://app.lbdigitalcreations.in,https://admin.lbdigitalcreations.in
+      - key: PUBLIC_WEB_URL
+        value: https://lbdc-web.vercel.app
+      - key: PUBLIC_ADMIN_URL
+        value: https://lbdc-admin.vercel.app
+      - key: PUBLIC_SITES_BASE_URL
+        value: https://lbdc-web.vercel.app/sites
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: SIGNED_URL_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false

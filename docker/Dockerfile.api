@@ -13,4 +13,4 @@ WORKDIR /app
 RUN apk add --no-cache openssl
 COPY --from=builder /app ./
 EXPOSE 4000
-CMD ["sh", "-c", "apps/api/node_modules/.bin/prisma migrate deploy --schema=apps/api/prisma/schema.prisma && node apps/api/dist/main.js"]
+CMD ["sh", "-c", "(apps/api/node_modules/.bin/prisma migrate deploy --schema=apps/api/prisma/schema.prisma || (apps/api/node_modules/.bin/prisma migrate resolve --applied 0001_init --schema=apps/api/prisma/schema.prisma && apps/api/node_modules/.bin/prisma migrate deploy --schema=apps/api/prisma/schema.prisma)) && node apps/api/dist/main.js"]
