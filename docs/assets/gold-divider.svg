@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 40" width="100%" role="img" aria-hidden="true">
+  <defs>
+    <linearGradient id="divLine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#EAE6DD" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#C5A15A" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#EAE6DD" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <line x1="80" y1="20" x2="575" y2="20" stroke="url(#divLine)" stroke-width="1.5"/>
+  <line x1="625" y1="20" x2="1120" y2="20" stroke="url(#divLine)" stroke-width="1.5"/>
+  <polygon points="600,8 612,20 600,32 588,20" fill="#C5A15A">
+    <animate attributeName="opacity" values="0.5;1;0.5" dur="3.2s" repeatCount="indefinite"/>
+  </polygon>
+  <polygon points="600,13 607,20 600,27 593,20" fill="#FFFFFF"/>
+</svg>
