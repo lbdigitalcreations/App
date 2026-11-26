@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -25,22 +27,48 @@ const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB
 
 @Injectable()
 export class StorageService {
+  private readonly logger = new Logger(StorageService.name);
   private readonly uploadDir: string;
   private readonly signedUrlSecret: string;
+  private readonly supabaseUrl?: string;
+  private readonly supabaseServiceKey?: string;
+  private readonly supabaseBucket: string;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
   ) {
-    this.uploadDir = path.resolve(
-      this.config.get<string>('LOCAL_UPLOAD_DIR') || path.join(process.cwd(), 'uploads'),
-    );
+    const defaultLocalDir = process.env.VERCEL
+      ? '/tmp/lbdc-uploads'
+      : path.join(process.cwd(), 'uploads');
+    this.uploadDir = path.resolve(this.config.get<string>('LOCAL_UPLOAD_DIR') || defaultLocalDir);
     this.signedUrlSecret =
       this.config.get<string>('SIGNED_URL_SECRET') || 'dev-signed-url-secret-change-me';
 
+    const rawSupabaseUrl =
+      this.config.get<string>('SUPABASE_URL') ||
+      this.config.get<string>('NEXT_PUBLIC_SUPABASE_URL');
+    this.supabaseUrl = rawSupabaseUrl ? rawSupabaseUrl.replace(/\/+$/, '') : undefined;
+    this.supabaseServiceKey = this.config.get<string>('SUPABASE_SERVICE_ROLE_KEY');
+    this.supabaseBucket = this.config.get<string>('SUPABASE_STORAGE_BUCKET') || 'lbdc-media';
+  }
+
+  private get usesSupabaseStorage(): boolean {
+    return Boolean(this.supabaseUrl && this.supabaseServiceKey);
+  }
+
+  private ensureLocalUploadDir(): void {
     if (!fs.existsSync(this.uploadDir)) {
       fs.mkdirSync(this.uploadDir, { recursive: true });
     }
+  }
+
+  private supabaseHeaders(extra: Record<string, string> = {}): Record<string, string> {
+    return {
+      apikey: this.supabaseServiceKey!,
+      Authorization: `Bearer ${this.supabaseServiceKey!}`,
+      ...extra,
+    };
   }
 
   async saveUpload(params: {
@@ -64,9 +92,31 @@ export class StorageService {
     const ext = path.extname(file.originalname) || '';
     const safeExt = ext.replace(/[^a-zA-Z0-9.]/g, '').slice(0, 10);
     const storageKey = `${crypto.randomUUID()}${safeExt}`;
-    const targetPath = path.join(this.uploadDir, storageKey);
 
-    await fs.promises.writeFile(targetPath, file.buffer);
+    let provider: 'supabase' | 'local' = 'local';
+    if (this.usesSupabaseStorage) {
+      const res = await fetch(
+        `${this.supabaseUrl}/storage/v1/object/${this.supabaseBucket}/${storageKey}`,
+        {
+          method: 'POST',
+          headers: this.supabaseHeaders({
+            'Content-Type': file.mimetype,
+            'x-upsert': 'true',
+          }),
+          body: new Uint8Array(file.buffer),
+        },
+      );
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        this.logger.error(`Supabase Storage upload failed (${res.status}): ${body}`);
+        throw new InternalServerErrorException('Failed to store uploaded media in Supabase');
+      }
+      provider = 'supabase';
+    } else {
+      this.ensureLocalUploadDir();
+      const targetPath = path.join(this.uploadDir, storageKey);
+      await fs.promises.writeFile(targetPath, file.buffer);
+    }
 
     const asset = await this.prisma.mediaAsset.create({
       data: {
@@ -77,7 +127,7 @@ export class StorageService {
         mimeType: file.mimetype,
         sizeBytes: file.size,
         storageKey,
-        provider: 'local',
+        provider,
         isPrivate: params.isPrivate ?? true,
       },
     });
@@ -127,6 +177,19 @@ export class StorageService {
       }
     }
 
+    if (asset.provider === 'supabase' && this.usesSupabaseStorage) {
+      const objectKey = path.basename(asset.storageKey);
+      const res = await fetch(
+        `${this.supabaseUrl}/storage/v1/object/${this.supabaseBucket}/${objectKey}`,
+        { headers: this.supabaseHeaders() },
+      );
+      if (!res.ok) {
+        throw new NotFoundException('Media file missing on Supabase storage');
+      }
+      const buffer = Buffer.from(await res.arrayBuffer());
+      return { asset, buffer };
+    }
+
     const filePath = path.join(this.uploadDir, path.basename(asset.storageKey));
     if (!fs.existsSync(filePath)) {
       throw new NotFoundException('Media file missing on storage');
@@ -144,9 +207,18 @@ export class StorageService {
       throw new ForbiddenException('Cannot delete another user’s media asset');
     }
 
-    const filePath = path.join(this.uploadDir, path.basename(asset.storageKey));
-    if (fs.existsSync(filePath)) {
-      await fs.promises.unlink(filePath);
+    if (asset.provider === 'supabase' && this.usesSupabaseStorage) {
+      const objectKey = path.basename(asset.storageKey);
+      await fetch(`${this.supabaseUrl}/storage/v1/object/${this.supabaseBucket}`, {
+        method: 'DELETE',
+        headers: this.supabaseHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ prefixes: [objectKey] }),
+      }).catch((err) => this.logger.warn(`Failed to delete object ${objectKey}: ${err?.message}`));
+    } else {
+      const filePath = path.join(this.uploadDir, path.basename(asset.storageKey));
+      if (fs.existsSync(filePath)) {
+        await fs.promises.unlink(filePath);
+      }
     }
 
     await this.prisma.mediaAsset.delete({ where: { id: assetId } });

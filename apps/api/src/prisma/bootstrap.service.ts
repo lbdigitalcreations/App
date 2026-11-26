@@ -18,6 +18,19 @@ export class BootstrapService implements OnModuleInit {
   }
 
   async ensureSystemBootstrap() {
+    const adminEmail = process.env.INITIAL_ADMIN_EMAIL;
+    const adminPassword = process.env.INITIAL_ADMIN_PASSWORD;
+
+    const existingTenant = await this.prisma.tenant.findUnique({ where: { slug: 'lbdc' } });
+    if (existingTenant && !(adminEmail && adminPassword)) {
+      const existingServices = await this.prisma.service.count({
+        where: { tenantId: existingTenant.id },
+      });
+      if (existingServices > 0) {
+        return;
+      }
+    }
+
     const tenant = await this.prisma.tenant.upsert({
       where: { slug: 'lbdc' },
       update: {},
@@ -58,8 +71,6 @@ export class BootstrapService implements OnModuleInit {
       roles[name] = r.id;
     }
 
-    const adminEmail = process.env.INITIAL_ADMIN_EMAIL;
-    const adminPassword = process.env.INITIAL_ADMIN_PASSWORD;
     if (adminEmail && adminPassword) {
       const existingAdmin = await this.prisma.user.findUnique({
         where: { email: adminEmail.toLowerCase() },

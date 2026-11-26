@@ -17,6 +17,19 @@ import { MarketingModule } from './marketing/marketing.module';
 import { AiModule } from './ai/ai.module';
 import { AdminModule } from './admin/admin.module';
 
+@Controller()
+export class RootController {
+  @Get()
+  index() {
+    return {
+      status: 'ok',
+      service: 'lbdc-api',
+      health: '/api/v1/health',
+      timestamp: new Date().toISOString(),
+    };
+  }
+}
+
 @Controller('health')
 export class HealthController {
   @Get()
@@ -50,7 +63,7 @@ export class HealthController {
     AiModule,
     AdminModule,
   ],
-  controllers: [HealthController],
+  controllers: [RootController, HealthController],
   providers: [
     {
       provide: APP_GUARD,

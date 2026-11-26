@@ -7,8 +7,10 @@ const rootDir = path.resolve(appDir, '../..');
 const sharedDir = path.join(rootDir, 'packages', 'shared');
 const targetSharedInNodeModules = path.join(appDir, 'node_modules', '@lbdc', 'shared');
 
-console.log('[LBDC] Preparing @lbdc/shared before Next.js build...');
-execSync('npm install --no-audit --no-fund', { cwd: sharedDir, stdio: 'inherit' });
+console.log('[LBDC] Preparing @lbdc/shared before build...');
+if (!fs.existsSync(path.join(sharedDir, 'node_modules', 'zod'))) {
+  execSync('npm install --no-audit --no-fund', { cwd: sharedDir, stdio: 'inherit' });
+}
 execSync('npm run build', { cwd: sharedDir, stdio: 'inherit' });
 
 const srcDist = path.join(sharedDir, 'dist');

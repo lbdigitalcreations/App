@@ -22,7 +22,7 @@ async function bootstrap() {
   });
 
   const prefix = process.env.API_PREFIX || 'api/v1';
-  app.setGlobalPrefix(prefix);
+  app.setGlobalPrefix(prefix, { exclude: ['/'] });
   app.useGlobalFilters(new GlobalExceptionFilter());
 
   const port = Number(process.env.PORT || 4000);
