@@ -9,6 +9,14 @@ const nextConfig = {
       { protocol: 'https', hostname: 'lbdigitalcreations.in' },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${process.env.INTERNAL_API_URL || 'https://lbdc-api.vercel.app'}/api/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
