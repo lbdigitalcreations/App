@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --lbdc-gold: #C5A15A;
+  --lbdc-champagne: #E6D5A8;
+  --lbdc-white: #FFFFFF;
+  --lbdc-bg: #F8F7F4;
+  --lbdc-text: #202020;
+  --lbdc-muted: #777777;
+  --lbdc-border: #EAE6DD;
+}
+
+body {
+  background-color: var(--lbdc-bg);
+  color: var(--lbdc-text);
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, .font-serif {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+.lbdc-card {
+  background-color: #FFFFFF;
+  border: 1px solid #EAE6DD;
+  border-radius: 16px;
+}
+
+.lbdc-btn-gold {
+  background-color: #C5A15A;
+  color: #FFFFFF;
+  transition: background-color 0.2s ease, transform 0.15s ease;
+}
+
+.lbdc-btn-gold:hover {
+  background-color: #A4823D;
+}
+
+.lbdc-btn-outline {
+  border: 1px solid #C5A15A;
+  color: #202020;
+  background-color: #FFFFFF;
+  transition: background-color 0.2s ease;
+}
+
+.lbdc-btn-outline:hover {
+  background-color: #F8F7F4;
+}

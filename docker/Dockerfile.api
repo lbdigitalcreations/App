@@ -1,0 +1,15 @@
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package.json tsconfig.base.json ./
+COPY packages/shared ./packages/shared
+COPY apps/api ./apps/api
+RUN npm install --install-links
+RUN npm run build --workspace=@lbdc/shared
+RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
+RUN npm run build --workspace=@lbdc/api
+
+FROM node:20-alpine
+WORKDIR /app
+COPY --from=builder /app ./
+EXPOSE 4000
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma && node apps/api/dist/main.js"]

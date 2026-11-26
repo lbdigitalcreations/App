@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #F8F7F4;
+  color: #202020;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+h1, h2, h3, .font-serif {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+.lbdc-card {
+  background-color: #FFFFFF;
+  border: 1px solid #EAE6DD;
+  border-radius: 14px;
+}
+
+.lbdc-btn-gold {
+  background-color: #C5A15A;
+  color: #FFFFFF;
+}
+
+.lbdc-btn-gold:hover {
+  background-color: #A4823D;
+}

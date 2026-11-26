@@ -1,0 +1,14 @@
+node_modules/
+.next/
+dist/
+build/
+.expo/
+.env
+.env.local
+.env.staging
+.env.production
+*.log
+uploads/
+coverage/
+.DS_Store
+Thumbs.db

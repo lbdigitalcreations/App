@@ -1,0 +1,65 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lbdc_postgres
+    environment:
+      POSTGRES_USER: lbdc
+      POSTGRES_PASSWORD: lbdc_dev_password
+      POSTGRES_DB: lbdc_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - lbdc_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lbdc -d lbdc_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: lbdc_redis
+    ports:
+      - "6379:6379"
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: lbdc_api
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://lbdc:lbdc_dev_password@postgres:5432/lbdc_db?schema=public
+      REDIS_HOST: redis
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    container_name: lbdc_web
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+  admin:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.admin
+    container_name: lbdc_admin
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+    ports:
+      - "3001:3001"
+    depends_on:
+      - api
+
+volumes:
+  lbdc_pgdata:

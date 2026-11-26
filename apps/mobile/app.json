@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "LB Digital Creations",
+    "slug": "lbdc-celebrations",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "lbdc",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#F8F7F4",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "in.lbdigitalcreations.app",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Upload celebration photos and videos in Moments Studio."
+      }
+    },
+    "android": {
+      "package": "in.lbdigitalcreations.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#F8F7F4"
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [{ "scheme": "https", "host": "app.lbdigitalcreations.in" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "plugins": ["expo-secure-store", "expo-image-picker", "expo-notifications"]
+  }
+}

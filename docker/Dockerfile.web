@@ -1,0 +1,14 @@
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package.json tsconfig.base.json ./
+COPY packages/shared ./packages/shared
+COPY apps/web ./apps/web
+RUN npm install --install-links
+RUN npm run build --workspace=@lbdc/shared
+RUN npm run build --workspace=@lbdc/web
+
+FROM node:20-alpine
+WORKDIR /app
+COPY --from=builder /app ./
+EXPOSE 3000
+CMD ["npm", "run", "start", "--workspace=@lbdc/web"]
