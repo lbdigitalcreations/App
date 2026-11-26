@@ -1,12 +1,16 @@
 <div align="center">
 
 <a href="https://lbdigitalcreations.in">
+  <img src="./app.jpeg" alt="LB Digital Creations Official Logo" width="210" />
+</a>
+
+<br/>
+
+<a href="https://lbdigitalcreations.in">
   <img src="./docs/assets/hero-banner.svg" alt="LB Digital Creations — Creating Websites for Your Special Moments" width="100%" />
 </a>
 
-<br/><br/>
-
-<img src="./apps/web/public/images/logo.jpg" alt="LB Digital Creations Emblem" width="84" />
+<br/>
 
 ### *Luxury Bespoke Celebration Websites — Engineered as a Multi-Platform SaaS Ecosystem*
 
