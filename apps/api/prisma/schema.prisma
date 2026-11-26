@@ -104,6 +104,7 @@ model User {
   phone             String?   @unique
   passwordHash      String?
   googleId          String?   @unique
+  facebookId        String?   @unique
   isEmailVerified   Boolean   @default(false)
   isPhoneVerified   Boolean   @default(false)
   isActive          Boolean   @default(true)

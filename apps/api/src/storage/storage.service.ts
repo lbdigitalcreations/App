@@ -49,7 +49,18 @@ export class StorageService {
       this.config.get<string>('SUPABASE_URL') ||
       this.config.get<string>('NEXT_PUBLIC_SUPABASE_URL');
     this.supabaseUrl = rawSupabaseUrl ? rawSupabaseUrl.replace(/\/+$/, '') : undefined;
-    this.supabaseServiceKey = this.config.get<string>('SUPABASE_SERVICE_ROLE_KEY');
+    const rawKey = this.config.get<string>('SUPABASE_SERVICE_ROLE_KEY');
+    if (rawKey) {
+      this.supabaseServiceKey = rawKey;
+    } else {
+      const enc = this.config.get<string>('SUPABASE_SERVICE_ROLE_KEY_ENC');
+      const masterKey = this.config.get<string>('ENC_KEY');
+      if (enc && masterKey) {
+        // Lazy import to avoid circular dependency issues
+        const { decryptEnv } = require('../common/decrypt');
+        this.supabaseServiceKey = decryptEnv(enc, masterKey);
+      }
+    }
     this.supabaseBucket = this.config.get<string>('SUPABASE_STORAGE_BUCKET') || 'lbdc-media';
   }
 

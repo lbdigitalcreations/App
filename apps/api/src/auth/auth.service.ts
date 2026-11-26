@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -21,6 +22,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private readonly googleClient: OAuth2Client;
 
   constructor(
@@ -32,6 +34,8 @@ export class AuthService {
   ) {
     this.googleClient = new OAuth2Client(this.config.get<string>('GOOGLE_CLIENT_ID'));
   }
+
+  // ── Helpers ──────────────────────────────────────────────────────
 
   private async getDefaultTenantAndCustomerRole() {
     const tenant = await this.prisma.tenant.findFirst({
@@ -55,10 +59,41 @@ export class AuthService {
     return `${prefix}${rand}`;
   }
 
+  // ── reCAPTCHA validation ─────────────────────────────────────────
+
+  async validateRecaptcha(token: string): Promise<void> {
+    const secret = this.config.get<string>('RECAPTCHA_SECRET');
+    if (!secret) {
+      this.logger.warn('RECAPTCHA_SECRET not configured – skipping verification');
+      return;
+    }
+
+    const url = 'https://www.google.com/recaptcha/api/siteverify';
+    const params = new URLSearchParams({ secret, response: token });
+
+    const res = await fetch(`${url}?${params.toString()}`, { method: 'POST' });
+    const data = (await res.json()) as { success: boolean; score?: number };
+
+    if (!data.success) {
+      throw new BadRequestException('reCAPTCHA verification failed');
+    }
+    // For v3, optionally enforce a minimum score
+    if (data.score !== undefined && data.score < 0.5) {
+      throw new BadRequestException('reCAPTCHA score too low – suspected bot');
+    }
+  }
+
+  // ── Register ─────────────────────────────────────────────────────
+
   async register(
-    input: RegisterInput,
+    input: RegisterInput & { recaptchaToken?: string },
     meta: { ipAddress?: string; userAgent?: string },
   ) {
+    // Validate reCAPTCHA if token provided (or required)
+    if (input.recaptchaToken) {
+      await this.validateRecaptcha(input.recaptchaToken);
+    }
+
     const existing = await this.prisma.user.findUnique({ where: { email: input.email } });
     if (existing) {
       throw new ConflictException('An account with this email already exists');
@@ -141,6 +176,8 @@ export class AuthService {
     };
   }
 
+  // ── Login ────────────────────────────────────────────────────────
+
   async login(
     input: LoginInput,
     meta: { ipAddress?: string; userAgent?: string },
@@ -183,6 +220,8 @@ export class AuthService {
     };
   }
 
+  // ── Token refresh ────────────────────────────────────────────────
+
   async refreshTokens(
     refreshToken: string,
     meta: { ipAddress?: string; userAgent?: string },
@@ -214,6 +253,8 @@ export class AuthService {
     };
   }
 
+  // ── Logout ───────────────────────────────────────────────────────
+
   async logout(userId: string, refreshToken?: string) {
     if (refreshToken) {
       const tokenHash = this.hashToken(refreshToken);
@@ -230,6 +271,8 @@ export class AuthService {
     return { loggedOut: true };
   }
 
+  // ── Email verification ───────────────────────────────────────────
+
   async verifyEmail(userId: string, code: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new BadRequestException('User not found');
@@ -242,6 +285,8 @@ export class AuthService {
 
     return { verified: true };
   }
+
+  // ── Phone OTP ────────────────────────────────────────────────────
 
   async requestPhoneOtp(phone: string) {
     const code = await this.createOtpToken(null, phone, 'PHONE_OTP');
@@ -292,6 +337,8 @@ export class AuthService {
     return { user: this.sanitizeUser(user), ...tokens };
   }
 
+  // ── Google OAuth ─────────────────────────────────────────────────
+
   async googleLogin(
     idToken: string,
     meta: { ipAddress?: string; userAgent?: string },
@@ -335,11 +382,103 @@ export class AuthService {
         },
         include: { role: true, profile: true },
       });
+    } else if (!user.googleId) {
+      // Link Google to existing account
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { googleId: payload.sub, isEmailVerified: true },
+      });
     }
 
     const tokens = await this.issueSessionTokens(user, meta);
     return { user: this.sanitizeUser(user), ...tokens };
   }
+
+  // ── Facebook OAuth ───────────────────────────────────────────────
+
+  async facebookLogin(
+    accessToken: string,
+    meta: { ipAddress?: string; userAgent?: string },
+  ) {
+    const appId = this.config.get<string>('FACEBOOK_APP_ID');
+    const appSecret = this.config.get<string>('FACEBOOK_APP_SECRET');
+    if (!appId || !appSecret) {
+      throw new BadRequestException('Facebook login is not configured on the server');
+    }
+
+    // Step 1: Verify token with Facebook debug_token endpoint
+    const debugUrl = `https://graph.facebook.com/debug_token?input_token=${accessToken}&access_token=${appId}|${appSecret}`;
+    const debugRes = await fetch(debugUrl);
+    const debugData = (await debugRes.json()) as {
+      data?: { is_valid: boolean; user_id: string; app_id: string };
+    };
+
+    if (!debugData.data?.is_valid || debugData.data.app_id !== appId) {
+      throw new UnauthorizedException('Invalid Facebook access token');
+    }
+    const fbUserId = debugData.data.user_id;
+
+    // Step 2: Get user profile from Facebook
+    const profileUrl = `https://graph.facebook.com/v19.0/${fbUserId}?fields=id,name,email,picture.type(large)&access_token=${accessToken}`;
+    const profileRes = await fetch(profileUrl);
+    const fbProfile = (await profileRes.json()) as {
+      id: string;
+      name?: string;
+      email?: string;
+      picture?: { data?: { url?: string } };
+    };
+
+    if (!fbProfile.id) {
+      throw new UnauthorizedException('Could not retrieve Facebook profile');
+    }
+
+    const fbEmail = fbProfile.email?.toLowerCase();
+
+    // Step 3: Find or create user
+    let user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { facebookId: fbProfile.id },
+          ...(fbEmail ? [{ email: fbEmail }] : []),
+        ],
+      },
+      include: { role: true, profile: true },
+    });
+
+    if (!user) {
+      const { tenant, role } = await this.getDefaultTenantAndCustomerRole();
+      const fullName = fbProfile.name || 'LBDC Customer';
+      const email = fbEmail || `fb_${fbProfile.id}@fb.lbdigitalcreations.in`;
+      user = await this.prisma.user.create({
+        data: {
+          tenantId: tenant.id,
+          roleId: role.id,
+          email,
+          facebookId: fbProfile.id,
+          isEmailVerified: !!fbEmail,
+          referralCode: this.generateReferralCode(fullName),
+          profile: {
+            create: {
+              fullName,
+              avatarUrl: fbProfile.picture?.data?.url ?? null,
+            },
+          },
+        },
+        include: { role: true, profile: true },
+      });
+    } else if (!user.facebookId) {
+      // Link Facebook to existing account
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { facebookId: fbProfile.id },
+      });
+    }
+
+    const tokens = await this.issueSessionTokens(user, meta);
+    return { user: this.sanitizeUser(user), ...tokens };
+  }
+
+  // ── Password reset ───────────────────────────────────────────────
 
   async requestPasswordReset(email: string) {
     const user = await this.prisma.user.findUnique({ where: { email: email.toLowerCase() } });
@@ -407,6 +546,8 @@ export class AuthService {
 
     return { reset: true };
   }
+
+  // ── Profile ──────────────────────────────────────────────────────
 
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -480,6 +621,8 @@ export class AuthService {
     return this.getProfile(userId);
   }
 
+  // ── Sessions ─────────────────────────────────────────────────────
+
   async listSessions(userId: string) {
     return this.prisma.userSession.findMany({
       where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
@@ -511,6 +654,8 @@ export class AuthService {
     return { deletionRequested: true };
   }
 
+  // ── Private: JWT / session tokens ────────────────────────────────
+
   private async issueSessionTokens(
     user: { id: string; email: string; tenantId: string; role: { name: string } },
     meta: { ipAddress?: string; userAgent?: string },
@@ -537,6 +682,8 @@ export class AuthService {
 
     return { accessToken, refreshToken };
   }
+
+  // ── Private: OTP helpers ─────────────────────────────────────────
 
   private async createOtpToken(userId: string | null, target: string, purpose: string) {
     const code = String(crypto.randomInt(100000, 999999));

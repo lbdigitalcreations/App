@@ -15,6 +15,7 @@ export const RegisterSchema = z.object({
     .regex(/[A-Z]/, 'Password must contain an uppercase letter')
     .regex(/[0-9]/, 'Password must contain a number'),
   referralCode: z.string().trim().max(32).optional(),
+  recaptchaToken: z.string().trim().optional(),
 });
 
 export const LoginSchema = z.object({

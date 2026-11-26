@@ -17,6 +17,7 @@
     "test:e2e": "vitest run test/platform.e2e.spec.ts"
   },
   "dependencies": {
+    "csurf": "^1.11.0",
     "@lbdc/shared": "file:../../packages/shared",
     "@nestjs/common": "^10.4.15",
     "@nestjs/config": "^3.3.0",

@@ -91,6 +91,14 @@ export class AuthController {
     });
   }
 
+  @Post('facebook')
+  facebookLogin(@Body('accessToken') accessToken: string, @Req() req: Request) {
+    return this.auth.facebookLogin(accessToken, {
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+  }
+
   @Post('password-reset/request')
   requestPasswordReset(
     @Body(new ZodValidationPipe(PasswordResetRequestSchema)) body: { email: string },
