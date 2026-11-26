@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Bell, CheckCircle2, Copy, ExternalLink, FileText, Gift, Plus, User } from 'lucide-react';
+import { Bell, Copy, ExternalLink, FileText, Gift, Plus, User } from 'lucide-react';
 import { apiFetch, getAccessToken, getStoredUser, handleOAuthCallback, setStoredUser } from '@/lib/api';
 
 export default function DashboardPage() {
@@ -48,20 +48,21 @@ export default function DashboardPage() {
           apiFetch('/marketing/referrals/me', { auth: true }),
         ]);
 
-        if (u.status === 'fulfilled' && u.value) {
-          setUser(u.value);
-          setStoredUser(u.value);
-          setFullName(u.value.profile?.fullName || '');
-          setCity(u.value.profile?.city || '');
+        if (u.status === 'fulfilled' && (u as any).value) {
+          const val = (u as any).value;
+          setUser(val);
+          setStoredUser(val);
+          setFullName(val.profile?.fullName || '');
+          setCity(val.profile?.city || '');
         }
-        if (o.status === 'fulfilled' && Array.isArray(o.value)) {
-          setOrders(o.value);
+        if (o.status === 'fulfilled' && Array.isArray((o as any).value)) {
+          setOrders((o as any).value);
         }
-        if (n.status === 'fulfilled' && Array.isArray(n.value)) {
-          setNotifications(n.value);
+        if (n.status === 'fulfilled' && Array.isArray((n as any).value)) {
+          setNotifications((n as any).value);
         }
-        if (r.status === 'fulfilled' && r.value) {
-          setReferrals(r.value);
+        if (r.status === 'fulfilled' && (r as any).value) {
+          setReferrals((r as any).value);
         }
       } catch {
         // Keep stored user, never bounce to /login
