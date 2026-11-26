@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { apiFetch, setAuthTokens } from '@/lib/api';
 
 interface SocialAuthButtonsProps {
   mode?: 'register' | 'login';
@@ -9,103 +8,123 @@ interface SocialAuthButtonsProps {
   onError?: (err: string) => void;
 }
 
+const SUPABASE_PROJECT_REF = 'pnqzohzckfryffgypzux';
+const SUPABASE_URL = 'https://pnqzohzckfryffgypzux.supabase.co';
+const SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBucXpvaHpja2ZyeWZmZ3lwenV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU2NjQ4OTYsImV4cCI6MjExMTI0MDg5Nn0.0KydHH0gLSNyI85vZ_RPvzvHH3-7zKKneQVxrZOJlGI';
+
 export function SocialAuthButtons({
   mode = 'register',
   dividerText = 'or continue with email',
   onError,
 }: SocialAuthButtonsProps) {
   const [loadingProvider, setLoadingProvider] = useState<'google' | 'facebook' | null>(null);
-  const [notice, setNotice] = useState<string>('');
+  const [setupModal, setSetupModal] = useState<{ provider: 'Google' | 'Facebook' } | null>(null);
 
-  const handleGoogleClick = async () => {
-    setNotice('');
-    setLoadingProvider('google');
-
+  const checkProviderEnabled = async (provider: 'google' | 'facebook'): Promise<boolean> => {
     try {
-      // 1. Check if Supabase or custom Google Client ID is configured in env
-      const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://pnqzohzckfryffgypzux.supabase.co';
-
-      if (googleClientId) {
-        // Direct Google OAuth redirect
-        const redirectUri = `${window.location.origin}/auth/callback?provider=google`;
-        const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(
-          redirectUri,
-        )}&response_type=token&scope=email%20profile`;
-        window.location.href = googleAuthUrl;
-        return;
-      }
-
-      // 2. Direct Supabase OAuth flow if configured
-      if (supabaseUrl && supabaseUrl !== 'undefined') {
-        const redirectUri = `${window.location.origin}/dashboard`;
-        const supabaseOAuthUrl = `${supabaseUrl}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(
-          redirectUri,
-        )}`;
-        window.location.href = supabaseOAuthUrl;
-        return;
-      }
-
-      // 3. Fallback info notice if client ID is still being set up in console
-      setNotice('Google Sign-In is initializing. You can sign in using your email and password below.');
-    } catch (err: any) {
-      const msg = err.message || 'Google sign-in could not be completed';
-      if (onError) onError(msg);
-      else setNotice(msg);
-    } finally {
-      setLoadingProvider(null);
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/settings`, {
+        headers: { apikey: SUPABASE_ANON_KEY },
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      return !!data.external?.[provider];
+    } catch {
+      return false;
     }
   };
 
-  const handleFacebookClick = async () => {
-    setNotice('');
-    setLoadingProvider('facebook');
-
+  const handleProviderLogin = async (provider: 'google' | 'facebook') => {
+    setLoadingProvider(provider);
     try {
-      const fbAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://pnqzohzckfryffgypzux.supabase.co';
-
-      if (fbAppId) {
-        const redirectUri = `${window.location.origin}/auth/callback?provider=facebook`;
-        const fbAuthUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${fbAppId}&redirect_uri=${encodeURIComponent(
-          redirectUri,
-        )}&scope=email,public_profile`;
-        window.location.href = fbAuthUrl;
+      const isEnabled = await checkProviderEnabled(provider);
+      if (!isEnabled) {
+        setSetupModal({ provider: provider === 'google' ? 'Google' : 'Facebook' });
+        setLoadingProvider(null);
         return;
       }
 
-      if (supabaseUrl && supabaseUrl !== 'undefined') {
-        const redirectUri = `${window.location.origin}/dashboard`;
-        const supabaseOAuthUrl = `${supabaseUrl}/auth/v1/authorize?provider=facebook&redirect_to=${encodeURIComponent(
-          redirectUri,
-        )}`;
-        window.location.href = supabaseOAuthUrl;
-        return;
-      }
-
-      setNotice('Facebook Sign-In is initializing. You can sign in using your email and password below.');
+      // If enabled in Supabase, redirect to OAuth authorization
+      const redirectUri = `${window.location.origin}/dashboard`;
+      const authUrl = `${SUPABASE_URL}/auth/v1/authorize?provider=${provider}&redirect_to=${encodeURIComponent(
+        redirectUri,
+      )}`;
+      window.location.href = authUrl;
     } catch (err: any) {
-      const msg = err.message || 'Facebook sign-in could not be completed';
-      if (onError) onError(msg);
-      else setNotice(msg);
-    } finally {
+      if (onError) onError(err.message || 'Authentication failed');
       setLoadingProvider(null);
     }
   };
 
   return (
     <div className="w-full">
-      {notice && (
-        <div className="mb-4 rounded-xl border border-sand bg-ivory p-3 text-xs text-ink/80 text-center">
-          {notice}
+      {/* Provider Setup Guide Modal */}
+      {setupModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-sand bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-sand pb-3">
+              <div className="flex items-center space-x-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-50 text-amber-600 font-bold">
+                  !
+                </span>
+                <h3 className="font-serif text-lg font-bold text-ink">
+                  {setupModal.provider} Provider Setup
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSetupModal(null)}
+                className="text-stone-400 hover:text-ink text-xl font-bold"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3 text-xs text-stone-600 leading-relaxed">
+              <p>
+                <strong>{setupModal.provider} OAuth</strong> is currently disabled in your Supabase backend.
+              </p>
+              <div className="rounded-xl bg-ivory p-3 border border-sand">
+                <p className="font-semibold text-ink mb-1">To enable {setupModal.provider} login:</p>
+                <ol className="list-decimal list-inside space-y-1 text-stone-600">
+                  <li>Open your Supabase Project Dashboard.</li>
+                  <li>Navigate to <strong>Authentication &rarr; Providers</strong>.</li>
+                  <li>Click <strong>{setupModal.provider}</strong>, toggle <strong>Enable</strong>, and paste your Client ID & Secret.</li>
+                  <li>Click <strong>Save</strong>.</li>
+                </ol>
+              </div>
+              <p className="text-stone-500">
+                In the meantime, you can sign in or register instantly using <strong>Email & Password</strong> or <strong>Phone OTP</strong> below.
+              </p>
+            </div>
+
+            <div className="mt-6 flex flex-col sm:flex-row gap-2">
+              <a
+                href={`https://supabase.com/dashboard/project/${SUPABASE_PROJECT_REF}/auth/providers`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex-1 text-center rounded-full bg-gold px-4 py-2.5 text-xs font-semibold text-white hover:bg-gold-dark transition shadow"
+              >
+                Open Supabase Providers &rarr;
+              </a>
+              <button
+                type="button"
+                onClick={() => setSetupModal(null)}
+                className="rounded-full border border-sand px-4 py-2.5 text-xs font-semibold text-ink hover:bg-stone-50"
+              >
+                Continue with Email
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
+      {/* Social Buttons Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {/* Google Button */}
         <button
           type="button"
-          onClick={handleGoogleClick}
+          onClick={() => handleProviderLogin('google')}
           disabled={!!loadingProvider}
           className="flex items-center justify-center rounded-xl border border-sand bg-white py-2.5 px-4 text-xs font-semibold text-ink shadow-sm transition hover:bg-stone-50 hover:border-gold hover:shadow active:scale-[0.99] disabled:opacity-60"
         >
@@ -127,20 +146,20 @@ export function SocialAuthButtons({
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
             />
           </svg>
-          <span>{loadingProvider === 'google' ? 'Connecting...' : 'Google'}</span>
+          <span>{loadingProvider === 'google' ? 'Checking...' : 'Google'}</span>
         </button>
 
         {/* Facebook Button */}
         <button
           type="button"
-          onClick={handleFacebookClick}
+          onClick={() => handleProviderLogin('facebook')}
           disabled={!!loadingProvider}
           className="flex items-center justify-center rounded-xl border border-sand bg-white py-2.5 px-4 text-xs font-semibold text-ink shadow-sm transition hover:bg-stone-50 hover:border-gold hover:shadow active:scale-[0.99] disabled:opacity-60"
         >
           <svg className="h-4 w-4 mr-2.5 flex-shrink-0 fill-[#1877F2]" viewBox="0 0 24 24">
             <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
           </svg>
-          <span>{loadingProvider === 'facebook' ? 'Connecting...' : 'Facebook'}</span>
+          <span>{loadingProvider === 'facebook' ? 'Checking...' : 'Facebook'}</span>
         </button>
       </div>
 
