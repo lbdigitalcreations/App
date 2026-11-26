@@ -10,12 +10,15 @@ const nextConfig = {
     ],
   },
   async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${process.env.INTERNAL_API_URL || 'https://lbdc-api.vercel.app'}/api/:path*`,
-      },
-    ];
+    if (process.env.INTERNAL_API_URL) {
+      return [
+        {
+          source: '/api/:path*',
+          destination: `${process.env.INTERNAL_API_URL}/api/:path*`,
+        },
+      ];
+    }
+    return [];
   },
 };
 
