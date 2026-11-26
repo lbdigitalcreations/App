@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
+import { decryptEnv } from '../common/decrypt';
 import { PrismaService } from '../prisma/prisma.service';
 
 const ALLOWED_MIME_TYPES = new Set([
@@ -56,8 +57,6 @@ export class StorageService {
       const enc = this.config.get<string>('SUPABASE_SERVICE_ROLE_KEY_ENC');
       const masterKey = this.config.get<string>('ENC_KEY');
       if (enc && masterKey) {
-        // Lazy import to avoid circular dependency issues
-        const { decryptEnv } = require('../common/decrypt');
         this.supabaseServiceKey = decryptEnv(enc, masterKey);
       }
     }
