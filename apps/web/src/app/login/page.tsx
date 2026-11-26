@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
-import { apiFetch, setAuthTokens } from '@/lib/api';
+import { useEffect, useState } from 'react';
+import { apiFetch, getAccessToken, getStoredUser, handleOAuthCallback, setAuthTokens } from '@/lib/api';
 import { SocialAuthButtons } from '@/components/SocialAuthButtons';
 
 export default function LoginPage() {
@@ -16,6 +16,16 @@ export default function LoginPage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    async function checkAuth() {
+      const oauthUser = await handleOAuthCallback();
+      if (oauthUser || getAccessToken() || getStoredUser()) {
+        window.location.href = '/dashboard';
+      }
+    }
+    checkAuth();
+  }, []);
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();

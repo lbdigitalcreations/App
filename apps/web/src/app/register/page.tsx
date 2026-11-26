@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { apiFetch, setAuthTokens } from '@/lib/api';
+import { apiFetch, getAccessToken, getStoredUser, handleOAuthCallback, setAuthTokens } from '@/lib/api';
 import { SocialAuthButtons } from '@/components/SocialAuthButtons';
 
 function RegisterForm() {
@@ -15,6 +15,16 @@ function RegisterForm() {
   const [referralCode, setReferralCode] = useState(searchParams.get('ref') || '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    async function checkAuth() {
+      const oauthUser = await handleOAuthCallback();
+      if (oauthUser || getAccessToken() || getStoredUser()) {
+        window.location.href = '/dashboard';
+      }
+    }
+    checkAuth();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

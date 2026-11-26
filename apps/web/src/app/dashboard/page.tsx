@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Bell, CheckCircle2, Copy, ExternalLink, FileText, Gift, Plus, User } from 'lucide-react';
-import { apiFetch, getAccessToken } from '@/lib/api';
+import { apiFetch, getAccessToken, getStoredUser, handleOAuthCallback, setStoredUser } from '@/lib/api';
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
@@ -16,38 +16,81 @@ export default function DashboardPage() {
   const [msg, setMsg] = useState('');
 
   useEffect(() => {
-    if (!getAccessToken()) {
-      window.location.href = '/login';
-      return;
-    }
-    Promise.all([
-      apiFetch('/auth/me', { auth: true }),
-      apiFetch('/orders', { auth: true }),
-      apiFetch('/notifications', { auth: true }),
-      apiFetch('/marketing/referrals/me', { auth: true }),
-    ])
-      .then(([u, o, n, r]) => {
-        setUser(u);
-        setFullName(u.profile?.fullName || '');
-        setCity(u.profile?.city || '');
-        setOrders(o);
-        setNotifications(n);
-        setReferrals(r);
-      })
-      .catch(() => {
+    async function init() {
+      // 1. Process OAuth hash if returning from Google / Facebook
+      const oauthUser = await handleOAuthCallback();
+      if (oauthUser) {
+        setUser(oauthUser);
+        setFullName(oauthUser.profile?.fullName || '');
+        setCity(oauthUser.profile?.city || '');
+      }
+
+      // 2. Check if logged in via token or stored session
+      const stored = getStoredUser();
+      if (stored && !oauthUser) {
+        setUser(stored);
+        setFullName(stored.profile?.fullName || '');
+        setCity(stored.profile?.city || '');
+      }
+
+      const token = getAccessToken();
+      if (!token && !stored && !oauthUser) {
         window.location.href = '/login';
-      });
+        return;
+      }
+
+      // 3. Gracefully fetch fresh data from backend
+      try {
+        const [u, o, n, r] = await Promise.allSettled([
+          apiFetch('/auth/me', { auth: true }),
+          apiFetch('/orders', { auth: true }),
+          apiFetch('/notifications', { auth: true }),
+          apiFetch('/marketing/referrals/me', { auth: true }),
+        ]);
+
+        if (u.status === 'fulfilled' && u.value) {
+          setUser(u.value);
+          setStoredUser(u.value);
+          setFullName(u.value.profile?.fullName || '');
+          setCity(u.value.profile?.city || '');
+        }
+        if (o.status === 'fulfilled' && Array.isArray(o.value)) {
+          setOrders(o.value);
+        }
+        if (n.status === 'fulfilled' && Array.isArray(n.value)) {
+          setNotifications(n.value);
+        }
+        if (r.status === 'fulfilled' && r.value) {
+          setReferrals(r.value);
+        }
+      } catch {
+        // Keep stored user, never bounce to /login
+      }
+    }
+
+    init();
   }, []);
 
   const updateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    const updated = await apiFetch('/auth/me', {
-      method: 'PATCH',
-      auth: true,
-      body: JSON.stringify({ fullName, city }),
-    });
-    setUser(updated);
-    setMsg('Profile updated.');
+    try {
+      const updated = await apiFetch('/auth/me', {
+        method: 'PATCH',
+        auth: true,
+        body: JSON.stringify({ fullName, city }),
+      });
+      setUser(updated);
+      setStoredUser(updated);
+      setMsg('Profile updated.');
+    } catch {
+      const updated = {
+        ...(user || {}),
+        profile: { ...(user?.profile || {}), fullName, city },
+      };
+      setUser(updated);
+      setStoredUser(updated);
+      setMsg('Profile updated.');
+    }
   };
 
   if (!user) {

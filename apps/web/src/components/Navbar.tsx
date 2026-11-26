@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Bell, Menu, Sparkles, User, X } from 'lucide-react';
-import { apiFetch, clearAuthTokens, getAccessToken } from '@/lib/api';
+import { apiFetch, clearAuthTokens, getAccessToken, getStoredUser, setStoredUser } from '@/lib/api';
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
@@ -11,11 +11,20 @@ export function Navbar() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
+    const stored = getStoredUser();
+    if (stored) {
+      setUser(stored);
+    }
+
     const token = getAccessToken();
     if (!token) return;
+
     apiFetch('/auth/me', { auth: true })
       .then((u) => {
-        setUser(u);
+        if (u) {
+          setUser(u);
+          setStoredUser(u);
+        }
         return apiFetch('/notifications', { auth: true });
       })
       .then((list) => {
