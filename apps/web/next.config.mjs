@@ -2,6 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@lbdc/shared'],
+  outputFileTracingRoot: 'F:\\LB_Digital_Creations\\app',
   images: {
     remotePatterns: [
       { protocol: 'http', hostname: 'localhost' },
@@ -11,12 +12,14 @@ const nextConfig = {
   },
   async rewrites() {
     if (process.env.INTERNAL_API_URL) {
-      return [
-        {
-          source: '/api/:path*',
-          destination: `${process.env.INTERNAL_API_URL}/api/:path*`,
-        },
-      ];
+      return {
+        fallback: [
+          {
+            source: '/api/v1/:path*',
+            destination: `${process.env.INTERNAL_API_URL}/api/v1/:path*`,
+          },
+        ],
+      };
     }
     return [];
   },

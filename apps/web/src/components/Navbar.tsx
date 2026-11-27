@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Bell, Menu, Sparkles, User, X } from 'lucide-react';
-import { apiFetch, clearAuthTokens, getAccessToken, getStoredUser, setStoredUser } from '@/lib/api';
+import { apiFetch, getAccessToken, getStoredUser, setStoredUser } from '@/lib/api';
+import { clearAllAuth } from '@/lib/authUtils';
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
@@ -39,7 +40,7 @@ export function Navbar() {
     try {
       await apiFetch('/auth/logout', { method: 'POST', auth: true, body: JSON.stringify({}) });
     } catch {}
-    clearAuthTokens();
+    clearAllAuth();
     setUser(null);
     window.location.href = '/';
   };
