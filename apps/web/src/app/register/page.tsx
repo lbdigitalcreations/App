@@ -3,7 +3,14 @@
 import Link from 'next/link';
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { apiFetch, getAccessToken, getStoredUser, handleOAuthCallback, setAuthTokens } from '@/lib/api';
+import {
+  apiFetch,
+  getAccessToken,
+  getStoredUser,
+  handleOAuthCallback,
+  setAuthTokens,
+  setStoredUser,
+} from '@/lib/api';
 import { SocialAuthButtons } from '@/components/SocialAuthButtons';
 
 function RegisterForm() {
@@ -42,6 +49,7 @@ function RegisterForm() {
         }),
       });
       setAuthTokens(res.accessToken, res.refreshToken);
+      if (res.user) setStoredUser(res.user);
       window.location.href = '/dashboard';
     } catch (err: any) {
       setError(err.message);

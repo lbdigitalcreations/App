@@ -2,7 +2,14 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { apiFetch, getAccessToken, getStoredUser, handleOAuthCallback, setAuthTokens } from '@/lib/api';
+import {
+  apiFetch,
+  getAccessToken,
+  getStoredUser,
+  handleOAuthCallback,
+  setAuthTokens,
+  setStoredUser,
+} from '@/lib/api';
 import { SocialAuthButtons } from '@/components/SocialAuthButtons';
 
 export default function LoginPage() {
@@ -37,6 +44,7 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
       setAuthTokens(res.accessToken, res.refreshToken);
+      if (res.user) setStoredUser(res.user);
       window.location.href = '/dashboard';
     } catch (err: any) {
       setError(err.message);
@@ -68,6 +76,7 @@ export default function LoginPage() {
         body: JSON.stringify({ phone, otp }),
       });
       setAuthTokens(res.accessToken, res.refreshToken);
+      if (res.user) setStoredUser(res.user);
       window.location.href = '/dashboard';
     } catch (err: any) {
       setError(err.message);
