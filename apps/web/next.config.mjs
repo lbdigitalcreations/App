@@ -2,7 +2,6 @@
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@lbdc/shared'],
-  outputFileTracingRoot: 'F:\\LB_Digital_Creations\\app',
   images: {
     remotePatterns: [
       { protocol: 'http', hostname: 'localhost' },
